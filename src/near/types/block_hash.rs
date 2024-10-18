@@ -1,11 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Deserializer, Serialize};
+use schemars::JsonSchema;
 use serde::de;
-use serde_big_array::BigArray;
 
-#[derive(Serialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
-#[serde(crate = "near_sdk::serde")]
-pub struct BlockHash(#[serde(with = "BigArray")] pub [u8; 32]);
+#[derive(Serialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq, JsonSchema)]
+pub struct BlockHash(pub [u8; 32]);
 
 impl From<[u8; 32]> for BlockHash {
     fn from(data: [u8; 32]) -> Self {

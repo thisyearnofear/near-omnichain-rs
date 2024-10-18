@@ -2,19 +2,19 @@ use crate::constants::{ED25519_PUBLIC_KEY_LENGTH, SECP256K1_PUBLIC_KEY_LENGTH};
 use crate::near::utils::PublicKeyStrExt;
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Deserializer, Serialize};
-use serde::de;
-use serde_big_array::BigArray;
+use schemars::JsonSchema;
+use serde::de::{self};
+use serde::ser::{SerializeTuple, Serializer};
 use std::io::{Error, Write};
 
-#[derive(Serialize, Deserialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct Secp256K1PublicKey(#[serde(with = "BigArray")] pub [u8; SECP256K1_PUBLIC_KEY_LENGTH]);
+#[derive(BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct Secp256K1PublicKey(pub [u8; SECP256K1_PUBLIC_KEY_LENGTH]);
 
-#[derive(Serialize, Deserialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, BorshDeserialize, PartialEq, Eq, Debug, Clone, JsonSchema)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ED25519PublicKey(pub [u8; ED25519_PUBLIC_KEY_LENGTH]);
 
-#[derive(Serialize, PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, PartialEq, Eq, Debug, Clone, JsonSchema)]
 #[serde(crate = "near_sdk::serde")]
 pub enum PublicKey {
     /// 256 bit elliptic curve based public-key.
@@ -153,6 +153,65 @@ impl<'de> Deserialize<'de> for PublicKey {
         }
 
         deserializer.deserialize_any(PublicKeyOrBytes)
+    }
+}
+
+// Big Array
+impl Serialize for Secp256K1PublicKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_tuple(SECP256K1_PUBLIC_KEY_LENGTH)?;
+        for byte in &self.0 {
+            seq.serialize_element(byte)?;
+        }
+        seq.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Secp256K1PublicKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Secp256K1PublicKeyVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for Secp256K1PublicKeyVisitor {
+            type Value = Secp256K1PublicKey;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str(&format!(
+                    "an array of {} bytes",
+                    SECP256K1_PUBLIC_KEY_LENGTH
+                ))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let mut arr = [0u8; SECP256K1_PUBLIC_KEY_LENGTH];
+                for i in 0..SECP256K1_PUBLIC_KEY_LENGTH {
+                    arr[i] = seq
+                        .next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(i, &self))?;
+                }
+                Ok(Secp256K1PublicKey(arr))
+            }
+        }
+
+        deserializer.deserialize_tuple(SECP256K1_PUBLIC_KEY_LENGTH, Secp256K1PublicKeyVisitor)
+    }
+}
+
+impl JsonSchema for Secp256K1PublicKey {
+    fn schema_name() -> String {
+        "Secp256K1PublicKey".to_owned()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        <Vec<u8>>::json_schema(gen)
     }
 }
 
