@@ -415,7 +415,6 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
     let change_txout = OmniTxOut {
         value: change_amount,
         script_pubkey: OmniScriptBuf(ScriptBuf::new_p2wpkh(&bob.wpkh).into_bytes()),
-        // script_pubkey: OmniScriptBuf(bob.address.script_pubkey().into_bytes()), // Change comes back to us.
     };
 
     // The spend output is locked to a key controlled by the receiver. In this case to Alice.
@@ -431,14 +430,9 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
         .outputs(vec![spend_txout, change_txout])
         .build();
 
-    // println!("OMNI omni_tx: {:?}", omni_tx.clone().serialize());
-
     let script_pubkey_bob = ScriptBuf::new_p2wpkh(&bob.wpkh)
         .p2wpkh_script_code()
         .unwrap();
-    // let script_pub_key_bytes_bob = script_pubkey_bob.as_bytes().to_vec();
-
-    // println!("script_pub_key_bytes_bob: {:?}", script_pubkey_bob);
 
     // Prepare the transaction for signing
     let sighash_type = OmniSighashType::All;
@@ -449,8 +443,6 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
         &OmniScriptBuf(script_pubkey_bob.into_bytes()),
         utxo_amount.to_sat(),
     );
-
-    // println!("OMNI sighash_data: {:?}", encoded_data);
 
     // Calculate the sighash
     let sighash_omni = sha256d::Hash::hash(&encoded_data);
@@ -491,28 +483,21 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
     };
     let input_index = 0;
 
-    // println!("omni_tx: {:?}", omni_tx.clone());
-    // println!("unsigned_tx: {:?}", unsigned_tx);
-
     let mut buffer = Vec::new();
     unsigned_tx.consensus_encode(&mut buffer).unwrap();
     println!("encoded bitcoin tx {:?}", buffer);
 
     // Get the sighash to sign.
-    let script_pubkey = ScriptBuf::new_p2wpkh(&bob.wpkh);
-    // println!("script_pubkey DESPUES: {:?}", script_pubkey);
-    println!("script_pubkey bytes: {:?}", script_pubkey.as_bytes());
-
     let sighash_type = EcdsaSighashType::All;
     let mut sighasher = SighashCache::new(&mut unsigned_tx);
-
-    let mut writer = Vec::new();
+    let script_pubkey = ScriptBuf::new_p2wpkh(&bob.wpkh);
     let script_code = script_pubkey.p2wpkh_script_code().unwrap();
-    println!("script_code: {:?}", script_code);
+
+    let mut encoded_btc_sighash = Vec::new();
 
     sighasher
         .segwit_v0_encode_signing_data_to(
-            &mut writer,
+            &mut encoded_btc_sighash,
             input_index,
             &script_code,
             btc_utxo_amount,
@@ -520,16 +505,11 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
         )
         .expect("failed to create sighash");
 
-    // println!("BITCOIN encoded_data: {:?}", writer);
-    // println!("OMNI sighash_data: {:?}", encoded_data);
-    assert_eq!(writer, encoded_data);
+    assert_eq!(encoded_btc_sighash, encoded_data);
 
     let sighash_bitcoin = sighasher
         .p2wpkh_signature_hash(input_index, &script_pubkey, btc_utxo_amount, sighash_type)
         .expect("failed to create sighash");
-
-    // println!("sighash_omni: {:?}", sighash_omni);
-    // println!("sighash_bitcoin: {:?}", sighash_bitcoin);
 
     // Assert that the sighash is the same
     assert_eq!(
