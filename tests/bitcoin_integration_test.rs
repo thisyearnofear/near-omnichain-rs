@@ -377,6 +377,420 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
 
     // Generate 101 blocks to the address
     client.generate_to_address(101, &bob.address)?;
+    client.generate_to_address(101, &bob.address)?;
+
+    // List UTXOs for Bob
+    let unspent_utxos_bob = btc_test_context.get_utxo_for_address(&bob.address).unwrap();
+
+    // Get the first two UTXOs
+    let first_two_unspent: Vec<_> = unspent_utxos_bob.into_iter().take(2).collect();
+    assert!(
+        first_two_unspent.len() == 2,
+        "There should be at least two unspent outputs"
+    );
+
+    let mut inputs = Vec::new();
+    let mut total_utxo_amount = 0;
+
+    for unspent in &first_two_unspent {
+        let txid_str = unspent["txid"].as_str().unwrap();
+        let bitcoin_txid: bitcoin::Txid = txid_str.parse()?;
+        let omni_hash = OmniHash::from_hex(txid_str)?;
+        let omni_txid = OmniTxid(omni_hash);
+
+        assert_eq!(bitcoin_txid.to_string(), omni_txid.to_string());
+
+        let vout = unspent["vout"].as_u64().unwrap();
+
+        // Create inputs using Omni library
+        let txin: OmniTxIn = OmniTxIn {
+            previous_output: OmniOutPoint::new(omni_txid, vout as u32),
+            script_sig: OmniScriptBuf::default(), // For a p2wpkh script_sig is empty.
+            sequence: OmniSequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: OmniWitness::default(), // Filled in after signing.
+        };
+
+        inputs.push(txin);
+
+        let utxo_amount =
+            OmniAmount::from_sat((unspent["amount"].as_f64().unwrap() * 100_000_000.0) as u64);
+        total_utxo_amount += utxo_amount.to_sat();
+    }
+
+    let change_amount: OmniAmount =
+        OmniAmount::from_sat(total_utxo_amount) - OMNI_SPEND_AMOUNT - OmniAmount::from_sat(1000); // 1000 satoshis for fee
+
+    println!("BOB PUBLIC KEY HASH: {:?}", bob.wpkh);
+
+    // The change output is locked to a key controlled by us.
+    let change_txout = OmniTxOut {
+        value: change_amount,
+        script_pubkey: OmniScriptBuf(ScriptBuf::new_p2wpkh(&bob.wpkh).into_bytes()),
+    };
+
+    // The spend output is locked to a key controlled by the receiver. In this case to Alice.
+    let spend_txout = OmniTxOut {
+        value: OMNI_SPEND_AMOUNT,
+        script_pubkey: OmniScriptBuf(alice.address.script_pubkey().into_bytes()),
+    };
+
+    let mut omni_tx: BitcoinTransaction = TransactionBuilder::new::<BITCOIN>()
+        .version(OmniVersion::Two)
+        .lock_time(OmniLockTime::from_height(0).unwrap())
+        .inputs(inputs)
+        .outputs(vec![spend_txout, change_txout])
+        .build();
+
+    let secp = Secp256k1::new();
+
+    for (i, unspent) in first_two_unspent.iter().enumerate() {
+        let utxo_amount =
+            OmniAmount::from_sat((unspent["amount"].as_f64().unwrap() * 100_000_000.0) as u64);
+
+        let script_pubkey_bob = ScriptBuf::new_p2wpkh(&bob.wpkh)
+            .p2wpkh_script_code()
+            .unwrap();
+
+        // Prepare the transaction for signing
+        let sighash_type = OmniSighashType::All;
+        let input_index = i;
+        let encoded_data = omni_tx.build_for_signing_segwit(
+            sighash_type,
+            input_index,
+            &OmniScriptBuf(script_pubkey_bob.into_bytes()),
+            utxo_amount.to_sat(),
+        );
+
+        // Calculate the sighash
+        let sighash_omni = sha256d::Hash::hash(&encoded_data);
+
+        // Sign the sighash
+        let msg_omni = Message::from_digest_slice(sighash_omni.as_byte_array()).unwrap();
+        let signature_omni = secp.sign_ecdsa(&msg_omni, &bob.private_key);
+
+        // Verify signature
+        let is_valid = secp
+            .verify_ecdsa(&msg_omni, &signature_omni, &bob.public_key)
+            .is_ok();
+
+        assert!(is_valid, "The signature should be valid");
+
+        println!("SIGNATURES ARE VALID");
+
+        // Encode the signature
+        let signature = bitcoin::ecdsa::Signature {
+            signature: signature_omni,
+            sighash_type: EcdsaSighashType::All,
+        };
+
+        // Create the witness
+        let witness = Witness::p2wpkh(&signature, &bob.public_key);
+        omni_tx.input[input_index].witness =
+            omni_transaction::bitcoin::types::Witness::from_slice(&witness.to_vec());
+    }
+
+    // Convert the transaction to a hexadecimal string
+    let hex_omni_tx = hex::encode(omni_tx.serialize());
+
+    let decoded_tx: serde_json::Value =
+        client.call("decoderawtransaction", &[json!(hex_omni_tx.clone())])?;
+    println!("Decoded transaction: {:?}", decoded_tx);
+
+    println!("HEX OMNI TX ENCODED: {:?}", hex_omni_tx);
+
+    let maxfeerate = 0.10;
+    let maxburnamount = 100.00;
+
+    // We now deploy to the bitcoin network (regtest mode)
+    let raw_tx_result: serde_json::Value = client
+        .call(
+            "sendrawtransaction",
+            &[json!(hex_omni_tx), json!(maxfeerate), json!(maxburnamount)],
+        )
+        .unwrap();
+
+    println!("raw_tx_result: {:?}", raw_tx_result);
+
+    client.generate_to_address(101, &bob.address)?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_sighash_for_multiple_p2wpkh_utxos() -> Result<()> {
+    let bitcoind = setup_bitcoin_testnet().unwrap();
+    let client = &bitcoind.client;
+
+    // Setup testing environment
+    let mut btc_test_context = BTCTestContext::new(client).unwrap();
+
+    // Setup Bob and Alice addresses
+    let bob = btc_test_context.setup_account(AddressType::Bech32).unwrap();
+
+    let alice = btc_test_context.setup_account(AddressType::Bech32).unwrap();
+
+    // Generate 101 blocks to the address
+    client.generate_to_address(101, &bob.address)?;
+    client.generate_to_address(101, &bob.address)?;
+
+    // List UTXOs for Bob
+    let unspent_utxos_bob = btc_test_context.get_utxo_for_address(&bob.address).unwrap();
+
+    // Get the first two UTXOs
+    let first_two_unspent: Vec<_> = unspent_utxos_bob.into_iter().take(2).collect();
+    assert!(
+        first_two_unspent.len() == 2,
+        "There should be at least two unspent outputs"
+    );
+
+    let mut inputs = Vec::new();
+    let mut total_utxo_amount = 0;
+    let mut bitcoin_txids = Vec::new();
+
+    for unspent in &first_two_unspent {
+        let txid_str = unspent["txid"].as_str().unwrap();
+        let bitcoin_txid: bitcoin::Txid = txid_str.parse()?;
+        let omni_hash = OmniHash::from_hex(txid_str)?;
+        let omni_txid = OmniTxid(omni_hash);
+
+        assert_eq!(bitcoin_txid.to_string(), omni_txid.to_string());
+
+        let vout = unspent["vout"].as_u64().unwrap();
+
+        // Create inputs using Omni library
+        let txin: OmniTxIn = OmniTxIn {
+            previous_output: OmniOutPoint::new(omni_txid, vout as u32),
+            script_sig: OmniScriptBuf::default(), // For a p2wpkh script_sig is empty.
+            sequence: OmniSequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: OmniWitness::default(), // Filled in after signing.
+        };
+
+        let btc_txid = TxIn {
+            previous_output: OutPoint::new(bitcoin_txid, vout as u32),
+            script_sig: ScriptBuf::default(), // For a p2wpkh script_sig is empty.
+            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
+            witness: Witness::default(), // Filled in after signing.
+        };
+
+        inputs.push(txin);
+        bitcoin_txids.push(btc_txid);
+
+        let utxo_amount =
+            OmniAmount::from_sat((unspent["amount"].as_f64().unwrap() * 100_000_000.0) as u64);
+
+        println!("UTXO AMOUNT: {:?}", utxo_amount);
+
+        total_utxo_amount += utxo_amount.to_sat();
+    }
+
+    let change_amount: OmniAmount =
+        OmniAmount::from_sat(total_utxo_amount) - OMNI_SPEND_AMOUNT - OmniAmount::from_sat(1000); // 1000 satoshis for fee
+
+    println!("BOB PUBLIC KEY HASH: {:?}", bob.wpkh);
+
+    // The change output is locked to a key controlled by us.
+    let change_txout = OmniTxOut {
+        value: change_amount,
+        script_pubkey: OmniScriptBuf(ScriptBuf::new_p2wpkh(&bob.wpkh).into_bytes()),
+    };
+
+    let btc_change_amount = Amount::from_sat(change_amount.to_sat());
+
+    // BTC Change Output
+    let btc_change_txout = TxOut {
+        value: btc_change_amount,
+        script_pubkey: ScriptBuf::new_p2wpkh(&bob.wpkh), // Change comes back to us.
+    };
+
+    // BTC Spend Output
+    let btc_spend_txout = TxOut {
+        value: BITCOIN_SPEND_AMOUNT,
+        script_pubkey: alice.address.script_pubkey(),
+    };
+
+    // The spend output is locked to a key controlled by the receiver. In this case to Alice.
+    let spend_txout = OmniTxOut {
+        value: OMNI_SPEND_AMOUNT,
+        script_pubkey: OmniScriptBuf(alice.address.script_pubkey().into_bytes()),
+    };
+
+    let mut omni_tx: BitcoinTransaction = TransactionBuilder::new::<BITCOIN>()
+        .version(OmniVersion::Two)
+        .lock_time(OmniLockTime::from_height(0).unwrap())
+        .inputs(inputs)
+        .outputs(vec![spend_txout, change_txout])
+        .build();
+
+    // BTC Transaction
+    let mut unsigned_tx = Transaction {
+        version: transaction::Version::TWO,              // Post BIP-68.
+        lock_time: absolute::LockTime::ZERO,             // Ignore the locktime.
+        input: bitcoin_txids,                            // Input goes into index 0.
+        output: vec![btc_spend_txout, btc_change_txout], // Outputs, order does not matter.
+    };
+
+    let mut buffer = Vec::new();
+    unsigned_tx.consensus_encode(&mut buffer).unwrap();
+    println!("encoded bitcoin tx {:?}", buffer);
+
+    assert_eq!(buffer, omni_tx.serialize());
+
+    println!("BITCOIN TX AND OMNI TX ARE THE SAME !!!");
+
+    // --------------------------------------------------------------------------
+    // COMPARE SIGHASHES
+    // --------------------------------------------------------------------------
+
+    let secp = Secp256k1::new();
+
+    let mut witness_vec = Vec::new();
+    for (i, unspent) in first_two_unspent.iter().enumerate() {
+        println!("ENTERING LOOP {:?}", i);
+        let utxo_amount =
+            OmniAmount::from_sat((unspent["amount"].as_f64().unwrap() * 100_000_000.0) as u64);
+
+        let script_pub_key = ScriptBuf::new_p2wpkh(&bob.wpkh);
+        let script_pubkey_bob = script_pub_key.p2wpkh_script_code().unwrap();
+
+        // Prepare the transaction for signing
+        let sighash_type = OmniSighashType::All;
+        let input_index = i;
+        let encoded_data = omni_tx.build_for_signing_segwit(
+            sighash_type,
+            input_index,
+            &OmniScriptBuf(script_pubkey_bob.into_bytes()),
+            utxo_amount.to_sat(),
+        );
+
+        // Calculate the sighash
+        let sighash_omni = sha256d::Hash::hash(&encoded_data);
+
+        let btc_sighash_type = EcdsaSighashType::All;
+        let mut sighasher = SighashCache::new(&mut unsigned_tx);
+
+        let btc_utxo_amount = Amount::from_sat(utxo_amount.to_sat());
+
+        // TODO: Meter la representacion intermedia para poder ver que es lo que se esta encodeando diferente
+        let mut encoded_btc_sighash = Vec::new();
+
+        sighasher
+            .segwit_v0_encode_signing_data_to(
+                &mut encoded_btc_sighash,
+                input_index,
+                &script_pub_key.p2wpkh_script_code().unwrap(),
+                btc_utxo_amount,
+                btc_sighash_type,
+            )
+            .expect("failed to create sighash");
+
+        println!("Encoded data for OMNI: {:?}", encoded_data);
+        println!("Encoded data for BTC: {:?}", encoded_btc_sighash);
+
+        assert_eq!(encoded_btc_sighash, encoded_data);
+
+        let sighash_bitcoin = sighasher
+            .p2wpkh_signature_hash(
+                input_index,
+                &script_pub_key,
+                btc_utxo_amount,
+                btc_sighash_type,
+            )
+            .expect("failed to create sighash");
+
+        assert_eq!(
+            sighash_omni.to_byte_array(),
+            sighash_bitcoin.to_byte_array(),
+            "SIGHASHES ARE NOT THE SAME"
+        );
+
+        println!("SIGHASHES ARE THE SAME !!!");
+        // Sign the sighash
+        let msg_omni = Message::from_digest_slice(sighash_omni.as_byte_array()).unwrap();
+        let signature_omni = secp.sign_ecdsa(&msg_omni, &bob.private_key);
+
+        // Verify signature
+        let is_valid = secp
+            .verify_ecdsa(&msg_omni, &signature_omni, &bob.public_key)
+            .is_ok();
+
+        assert!(is_valid, "The signature should be valid");
+
+        println!("SIGNATURES ARE VALID");
+
+        // Encode the signature
+        let signature = bitcoin::ecdsa::Signature {
+            signature: signature_omni,
+            sighash_type: EcdsaSighashType::All,
+        };
+
+        // Create the witness
+        let witness = Witness::p2wpkh(&signature, &bob.public_key);
+
+        // TODO: Review that the witness information is correct, that is, that the witness is being
+        // included in the correct input and is in the final transaction
+        println!("witness: {:?}", witness);
+        println!("input_index: {:?}", input_index);
+
+        witness_vec.push(omni_transaction::bitcoin::types::Witness::from_slice(
+            &witness.to_vec(),
+        ));
+
+        // TODO: Guardar esto aparte para luego reconstruir la transaction
+        // TODO: O sea, guardar los witness en una structura temporal y al final agregarlos a omni_tx
+        //  y listo
+        // omni_tx.input[input_index].witness =
+        // omni_transaction::bitcoin::types::Witness::from_slice(&witness.to_vec());
+    }
+
+    // Add the witness to the transaction
+    for (i, witness) in witness_vec.iter().enumerate() {
+        omni_tx.input[i].witness = witness.clone();
+    }
+
+    let serialized_tx = omni_tx.serialize();
+    println!("serialized omni tx: {:?}", serialized_tx);
+
+    // Convert the transaction to a hexadecimal string
+    let hex_omni_tx = hex::encode(serialized_tx);
+    println!("HEX OMNI TX ENCODED: {:?}", hex_omni_tx);
+
+    let decoded_tx: serde_json::Value =
+        client.call("decoderawtransaction", &[json!(hex_omni_tx.clone())])?;
+    println!("Decoded transaction: {:?}", decoded_tx);
+
+    let maxfeerate = 0.10;
+    let maxburnamount = 100.00;
+
+    // We now deploy to the bitcoin network (regtest mode)
+    let raw_tx_result: serde_json::Value = client
+        .call(
+            "sendrawtransaction",
+            &[json!(hex_omni_tx), json!(maxfeerate), json!(maxburnamount)],
+        )
+        .unwrap();
+
+    println!("raw_tx_result: {:?}", raw_tx_result);
+
+    client.generate_to_address(101, &bob.address)?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_p2wpkh_single_utxo() -> Result<()> {
+    let bitcoind = setup_bitcoin_testnet().unwrap();
+    let client = &bitcoind.client;
+
+    // Setup testing environment
+    let mut btc_test_context = BTCTestContext::new(client).unwrap();
+
+    // Setup Bob and Alice addresses
+    let bob = btc_test_context.setup_account(AddressType::Bech32).unwrap();
+
+    let alice = btc_test_context.setup_account(AddressType::Bech32).unwrap();
+
+    // Generate 101 blocks to the address
+    client.generate_to_address(101, &bob.address)?;
 
     // List UTXOs for Bob
     let unspent_utxos_bob = btc_test_context.get_utxo_for_address(&bob.address).unwrap();
@@ -534,6 +948,8 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
 
     assert!(is_valid, "The signature should be valid");
 
+    println!("SIGNATURES ARE VALID");
+
     // Encode the signature
     let signature = bitcoin::ecdsa::Signature {
         signature: signature_omni,
@@ -568,18 +984,6 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
     client.generate_to_address(101, &bob.address)?;
 
     Ok(())
-
-    // PERHAPS TO COMPARE ??
-    // let msg = Message::from(sighash);
-    // let signature = secp.sign_ecdsa(&msg, &sk);
-
-    // // Update the witness stack.
-    // let signature = bitcoin::ecdsa::Signature { signature, sighash_type };
-    // let pk = sk.public_key(&secp);
-    // *sighasher.witness_mut(input_index).unwrap() = Witness::p2wpkh(signature, pk);
-
-    // // Get the signed transaction.
-    // let tx = sighasher.into_transaction();
 }
 
 #[tokio::test]
