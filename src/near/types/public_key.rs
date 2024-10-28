@@ -192,8 +192,8 @@ impl<'de> Deserialize<'de> for Secp256K1PublicKey {
                 A: serde::de::SeqAccess<'de>,
             {
                 let mut arr = [0u8; SECP256K1_PUBLIC_KEY_LENGTH];
-                for i in 0..SECP256K1_PUBLIC_KEY_LENGTH {
-                    arr[i] = seq
+                for (i, byte) in arr.iter_mut().enumerate().take(SECP256K1_PUBLIC_KEY_LENGTH) {
+                    *byte = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(i, &self))?;
                 }

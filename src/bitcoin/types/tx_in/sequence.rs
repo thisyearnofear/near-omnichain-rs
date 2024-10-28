@@ -37,10 +37,10 @@ impl Sequence {
 
     /// The sequence number that enables absolute lock time but disables replace-by-fee
     /// and relative lock time.
-    pub const ENABLE_LOCKTIME_NO_RBF: Self = Sequence::MIN_NO_RBF;
+    pub const ENABLE_LOCKTIME_NO_RBF: Self = Self::MIN_NO_RBF;
     /// The sequence number that enables replace-by-fee and absolute lock time but
     /// disables relative lock time.
-    pub const ENABLE_RBF_NO_LOCKTIME: Self = Sequence(0xFFFFFFFD);
+    pub const ENABLE_RBF_NO_LOCKTIME: Self = Self(0xFFFFFFFD);
 
     /// The lowest sequence number that does not opt-in for replace-by-fee.
     ///
@@ -49,7 +49,7 @@ impl Sequence {
     /// (Explicit Signalling [BIP-125]).
     ///
     /// [BIP-125]: <https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki]>
-    const MIN_NO_RBF: Self = Sequence(0xFFFFFFFE);
+    const MIN_NO_RBF: Self = Self(0xFFFFFFFE);
 }
 
 impl Default for Sequence {

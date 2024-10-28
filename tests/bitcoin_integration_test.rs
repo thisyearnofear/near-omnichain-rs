@@ -68,7 +68,7 @@ async fn test_send_p2pkh_using_rust_bitcoin_and_omni_library() -> Result<()> {
     assert_eq!(0, blockchain_info.blocks);
 
     // Setup testing environment
-    let mut btc_test_context = BTCTestContext::new(client).unwrap();
+    let btc_test_context = BTCTestContext::new(client).unwrap();
 
     // Setup Bob and Alice addresses
     let bob = btc_test_context.setup_account(AddressType::Legacy).unwrap();
@@ -186,7 +186,7 @@ async fn test_sighash_p2wpkh_using_rust_bitcoin_and_omni_library() -> Result<()>
     let client = &bitcoind.client;
 
     // Setup testing environment
-    let mut btc_test_context = BTCTestContext::new(client).unwrap();
+    let btc_test_context = BTCTestContext::new(client).unwrap();
 
     // Setup Bob and Alice addresses
     let bob = btc_test_context.setup_account(AddressType::Bech32).unwrap();
@@ -338,7 +338,7 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
     let client = &bitcoind.client;
 
     // Setup testing environment
-    let mut btc_test_context = BTCTestContext::new(client).unwrap();
+    let btc_test_context = BTCTestContext::new(client).unwrap();
 
     // Setup Bob and Alice addresses
     let bob = btc_test_context.setup_account(AddressType::Bech32).unwrap();
@@ -540,7 +540,7 @@ async fn test_multiple_p2wpkh_utxos() -> Result<()> {
     let hex_omni_tx = hex::encode(serialized_tx);
 
     let _decoded_tx: serde_json::Value =
-        client.call("decoderawtransaction", &[json!(hex_omni_tx.clone())])?;
+        client.call("decoderawtransaction", &[json!(hex_omni_tx)])?;
 
     let maxfeerate = 0.10;
     let maxburnamount = 100.00;
@@ -566,7 +566,7 @@ async fn test_sighash_for_multiple_p2wpkh_utxos() -> Result<()> {
     let client = &bitcoind.client;
 
     // Setup testing environment
-    let mut btc_test_context = BTCTestContext::new(client).unwrap();
+    let btc_test_context = BTCTestContext::new(client).unwrap();
 
     // Setup Bob and Alice addresses
     let bob = btc_test_context.setup_account(AddressType::Bech32).unwrap();
@@ -738,7 +738,7 @@ async fn test_p2wpkh_single_utxo() -> Result<()> {
     let client = &bitcoind.client;
 
     // Setup testing environment
-    let mut btc_test_context = BTCTestContext::new(client).unwrap();
+    let btc_test_context = BTCTestContext::new(client).unwrap();
 
     // Setup Bob and Alice addresses
     let bob = btc_test_context.setup_account(AddressType::Bech32).unwrap();
@@ -935,7 +935,7 @@ async fn test_send_p2wpkh_using_rust_bitcoin_and_omni_library() -> Result<()> {
     let client = &bitcoind.client;
 
     // Setup testing environment
-    let mut btc_test_context = BTCTestContext::new(client).unwrap();
+    let btc_test_context = BTCTestContext::new(client).unwrap();
 
     // Setup Bob and Alice addresses
     let bob = btc_test_context.setup_account(AddressType::Bech32).unwrap();

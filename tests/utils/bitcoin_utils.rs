@@ -35,7 +35,7 @@ impl<'a> BTCTestContext<'a> {
     }
 
     pub fn setup_account(
-        &mut self,
+        &self,
         address_type: AddressType,
     ) -> Result<UserInfo, Box<dyn std::error::Error>> {
         let address = self
@@ -88,7 +88,7 @@ impl<'a> BTCTestContext<'a> {
         let derived_address = if address_type == AddressType::Bech32 {
             Address::p2wpkh(&compressed_pub_key, Network::Regtest)
         } else {
-            Address::p2pkh(&compressed_pub_key, Network::Regtest)
+            Address::p2pkh(compressed_pub_key, Network::Regtest)
         };
 
         assert_eq!(
