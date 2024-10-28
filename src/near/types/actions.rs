@@ -2,10 +2,21 @@ use crate::near::types::PublicKey;
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::AccountId;
+use schemars::JsonSchema;
 
 use super::{U128, U64};
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Action {
     /// Create an (sub)account using a transaction `receiver_id` as an ID for
@@ -22,17 +33,47 @@ pub enum Action {
     DeleteAccount(DeleteAccountAction),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct CreateAccountAction {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct DeployContractAction {
     pub code: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct FunctionCallAction {
     pub method_name: String,
@@ -41,13 +82,33 @@ pub struct FunctionCallAction {
     pub deposit: U128,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct TransferAction {
     pub deposit: U128,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct StakeAction {
     /// Amount of tokens to stake.
@@ -56,7 +117,17 @@ pub struct StakeAction {
     pub public_key: PublicKey,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AddKeyAction {
     /// A public key which will be associated with an access_key
@@ -65,7 +136,17 @@ pub struct AddKeyAction {
     pub access_key: AccessKey,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AccessKey {
     /// Nonce for this access key, used for tx nonce generation. When access key is created, nonce
@@ -76,7 +157,17 @@ pub struct AccessKey {
     pub permission: AccessKeyPermission,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AccessKeyPermission {
     FunctionCall(FunctionCallPermission),
@@ -85,7 +176,17 @@ pub enum AccessKeyPermission {
     FullAccess,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct FunctionCallPermission {
     pub allowance: Option<U128>,
@@ -93,14 +194,34 @@ pub struct FunctionCallPermission {
     pub method_names: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct DeleteKeyAction {
     /// A public key associated with the access_key to be deleted.
     pub public_key: PublicKey,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct DeleteAccountAction {
     pub beneficiary_id: AccountId,

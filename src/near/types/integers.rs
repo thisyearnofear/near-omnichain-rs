@@ -1,11 +1,12 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Deserializer, Serialize};
+use schemars::JsonSchema;
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize, JsonSchema)]
 pub struct U64(pub u64);
 
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize, JsonSchema)]
 pub struct U128(pub u128);
 
 impl From<u64> for U64 {

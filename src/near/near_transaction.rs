@@ -1,10 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{borsh, AccountId};
+use schemars::JsonSchema;
 
 use super::types::{Action, BlockHash, PublicKey, Signature, U64};
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, JsonSchema)]
 #[serde(crate = "near_sdk::serde")]
 pub struct NearTransaction {
     /// An account on which behalf transaction is signed
