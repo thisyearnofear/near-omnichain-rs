@@ -10,7 +10,7 @@ use bitcoin::{ScriptBuf, Sequence};
 use bitcoin::{TxOut, Witness};
 use bitcoind::AddressType;
 // Omni library
-use omni_testing_utilities::BTCTestContext;
+use omni_testing_utilities::bitcoin::BTCTestContext;
 use omni_transaction::bitcoin::bitcoin_transaction::BitcoinTransaction;
 use omni_transaction::bitcoin::types::{
     Amount as OmniAmount, EcdsaSighashType as OmniSighashType, Hash as OmniHash,
