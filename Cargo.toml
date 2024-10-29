@@ -46,14 +46,13 @@ alloy-primitives = { version = "0.8.3" }
 # near
 near-primitives = { version = "0.25.0" }
 near-crypto = { version = "0.25.0" }
+near-jsonrpc-client = { git = "https://github.com/omni-rs/near-jsonrpc-client-rs", tag = "v0.12.1" }
 near-workspaces = { version = "0.13.0", features = [
     "experimental",
     "unstable",
 ] }
-near-jsonrpc-client = { git = "https://github.com/EdsonAlcala/near-jsonrpc-client-rs", tag = "v0.12.1" }
 
 # bitcoin
-tempfile = "3.3.0"
 bitcoin = { version = "0.32.0", default-features = false, features = [
     "std",
     "serde",
@@ -62,12 +61,12 @@ bitcoin = { version = "0.32.0", default-features = false, features = [
     "secp-lowmemory",
     "secp-recovery",
 ] }
-bitcoind = { package = "bitcoind-json-rpc-regtest", version = "0.3.0", features = [
-    "26_0",
-] }
 
 # async
 tokio = { version = "1.38", features = ["full"] }
 
 # misc
 eyre = "0.6"
+
+# testing
+omni-testing-utilities = { git = "https://github.com/Omni-rs/omni-testing-utilities", branch = "main" }
