@@ -1,16 +1,18 @@
-use bitcoin::consensus::Encodable;
 // Rust Bitcoin
+use bitcoin::consensus::Encodable;
 use bitcoin::hashes::{sha256d, Hash};
 use bitcoin::script::Builder;
 use bitcoin::secp256k1::{Message, Secp256k1};
 use bitcoin::sighash::SighashCache;
-use bitcoin::{absolute, transaction, Address, Amount, Transaction, TxIn};
+use bitcoin::{absolute, transaction, Amount, Transaction, TxIn};
 use bitcoin::{EcdsaSighashType, OutPoint};
 use bitcoin::{ScriptBuf, Sequence};
 use bitcoin::{TxOut, Witness};
-use bitcoind::AddressType;
-// Omni library
+// Omni testing utilities
+use omni_testing_utilities::bitcoin::setup_bitcoin_testnet;
 use omni_testing_utilities::bitcoin::BTCTestContext;
+use omni_testing_utilities::bitcoind::AddressType;
+// Omni library
 use omni_transaction::bitcoin::bitcoin_transaction::BitcoinTransaction;
 use omni_transaction::bitcoin::types::{
     Amount as OmniAmount, EcdsaSighashType as OmniSighashType, Hash as OmniHash,
@@ -25,130 +27,9 @@ use omni_transaction::types::BITCOIN;
 use eyre::Result;
 use serde_json::json;
 use std::result::Result::Ok;
-use tempfile::TempDir;
 
 const OMNI_SPEND_AMOUNT: OmniAmount = OmniAmount::from_sat(500_000_000);
 const BITCOIN_SPEND_AMOUNT: Amount = Amount::from_sat(500_000_000);
-
-#[tokio::test]
-async fn test_send_p2pkh_using_rust_bitcoin_and_omni_library() -> Result<()> {
-    let bitcoind = setup_bitcoin_testnet().unwrap();
-    let client = &bitcoind.client;
-
-    // Setup testing environment
-    let btc_test_context = BTCTestContext::new(client).unwrap();
-
-    // Setup Bob and Alice addresses
-    let bob = btc_test_context.setup_account(AddressType::Legacy).unwrap();
-
-    let alice = btc_test_context.setup_account(AddressType::Legacy).unwrap();
-
-    // Generate 101 blocks to Bob's address
-    client.generate_to_address(101, &bob.address)?;
-
-    // List UTXOs for Bob
-    let unspent_utxos_bob = btc_test_context.get_utxo_for_address(&bob.address).unwrap();
-
-    // Get the first UTXO
-    let first_unspent = unspent_utxos_bob
-        .into_iter()
-        .next()
-        .expect("There should be at least one unspent output");
-
-    let txid_str = first_unspent["txid"].as_str().unwrap();
-    let bitcoin_txid: bitcoin::Txid = txid_str.parse()?;
-    let omni_hash = OmniHash::from_hex(txid_str)?;
-    let omni_txid = OmniTxid(omni_hash);
-
-    assert_eq!(bitcoin_txid.to_string(), omni_txid.to_string());
-
-    let vout = first_unspent["vout"].as_u64().unwrap();
-
-    // Create inputs using Omni library
-    let txin: OmniTxIn = OmniTxIn {
-        previous_output: OmniOutPoint::new(omni_txid, vout as u32),
-        script_sig: OmniScriptBuf::default(), // Initially empty, will be filled later with the signature
-        sequence: OmniSequence::MAX,
-        witness: OmniWitness::default(),
-    };
-
-    // Create the spend output
-    let txout = OmniTxOut {
-        value: OMNI_SPEND_AMOUNT,
-        script_pubkey: OmniScriptBuf(alice.script_pubkey.as_bytes().to_vec()),
-    };
-
-    let utxo_amount =
-        OmniAmount::from_sat((first_unspent["amount"].as_f64().unwrap() * 100_000_000.0) as u64);
-
-    let change_amount: OmniAmount = utxo_amount - OMNI_SPEND_AMOUNT - OmniAmount::from_sat(1000); // 1000 satoshis for fee
-
-    // Create the change output
-    let change_txout = OmniTxOut {
-        value: change_amount,
-        script_pubkey: OmniScriptBuf(bob.script_pubkey.as_bytes().to_vec()),
-    };
-
-    let mut omni_tx: BitcoinTransaction = TransactionBuilder::new::<BITCOIN>()
-        .version(OmniVersion::One)
-        .lock_time(OmniLockTime::from_height(1).unwrap())
-        .inputs(vec![txin])
-        .outputs(vec![txout, change_txout])
-        .build();
-
-    // Add the script_sig to the transaction
-    omni_tx.input[0].script_sig = OmniScriptBuf(bob.script_pubkey.as_bytes().to_vec());
-
-    // Encode the transaction for signing
-    let sighash_type = OmniSighashType::All;
-    let encoded_data = omni_tx.build_for_signing_legacy(sighash_type);
-
-    // Calculate the sighash
-    let sighash_omni = sha256d::Hash::hash(&encoded_data);
-    let msg_omni = Message::from_digest_slice(sighash_omni.as_byte_array()).unwrap();
-
-    // Sign the sighash and broadcast the transaction using the Omni library
-    let secp = Secp256k1::new();
-    let signature_omni = secp.sign_ecdsa(&msg_omni, &bob.private_key);
-
-    // Verify signature
-    let is_valid = secp
-        .verify_ecdsa(&msg_omni, &signature_omni, &bob.public_key)
-        .is_ok();
-
-    assert!(is_valid, "The signature should be valid");
-
-    // Encode the signature
-    let signature = bitcoin::ecdsa::Signature {
-        signature: signature_omni,
-        sighash_type: EcdsaSighashType::All,
-    };
-
-    // Create the script_sig
-    let script_sig_new = Builder::new()
-        .push_slice(signature.serialize())
-        .push_key(&bob.bitcoin_public_key)
-        .into_script();
-
-    // Assign script_sig to txin
-    let omni_script_sig = OmniScriptBuf(script_sig_new.as_bytes().to_vec());
-    let encoded_omni_tx = omni_tx.build_with_script_sig(0, omni_script_sig, TransactionType::P2PKH);
-
-    // Convert the transaction to a hexadecimal string
-    let hex_omni_tx = hex::encode(encoded_omni_tx);
-
-    let raw_tx_result: serde_json::Value = client
-        .call("sendrawtransaction", &[json!(hex_omni_tx)])
-        .unwrap();
-
-    println!("raw_tx_result: {:?}", raw_tx_result);
-
-    client.generate_to_address(101, &bob.address)?;
-
-    assert_utxos_for_address(client, alice.address, 1);
-
-    Ok(())
-}
 
 #[tokio::test]
 async fn test_sighash_p2wpkh_using_rust_bitcoin_and_omni_library() -> Result<()> {
@@ -470,6 +351,126 @@ async fn test_sighash_for_multiple_p2wpkh_utxos() -> Result<()> {
             "SIGHASHES ARE NOT THE SAME"
         );
     }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_send_p2pkh_using_rust_bitcoin_and_omni_library() -> Result<()> {
+    let bitcoind = setup_bitcoin_testnet().unwrap();
+    let client = &bitcoind.client;
+
+    // Setup testing environment
+    let btc_test_context = BTCTestContext::new(client).unwrap();
+
+    // Setup Bob and Alice addresses
+    let bob = btc_test_context.setup_account(AddressType::Legacy).unwrap();
+
+    let alice = btc_test_context.setup_account(AddressType::Legacy).unwrap();
+
+    // Generate 101 blocks to Bob's address
+    client.generate_to_address(101, &bob.address)?;
+
+    // List UTXOs for Bob
+    let unspent_utxos_bob = btc_test_context.get_utxo_for_address(&bob.address).unwrap();
+
+    // Get the first UTXO
+    let first_unspent = unspent_utxos_bob
+        .into_iter()
+        .next()
+        .expect("There should be at least one unspent output");
+
+    let txid_str = first_unspent["txid"].as_str().unwrap();
+    let bitcoin_txid: bitcoin::Txid = txid_str.parse()?;
+    let omni_hash = OmniHash::from_hex(txid_str)?;
+    let omni_txid = OmniTxid(omni_hash);
+
+    assert_eq!(bitcoin_txid.to_string(), omni_txid.to_string());
+
+    let vout = first_unspent["vout"].as_u64().unwrap();
+
+    // Create inputs using Omni library
+    let txin: OmniTxIn = OmniTxIn {
+        previous_output: OmniOutPoint::new(omni_txid, vout as u32),
+        script_sig: OmniScriptBuf::default(), // Initially empty, will be filled later with the signature
+        sequence: OmniSequence::MAX,
+        witness: OmniWitness::default(),
+    };
+
+    // Create the spend output
+    let txout = OmniTxOut {
+        value: OMNI_SPEND_AMOUNT,
+        script_pubkey: OmniScriptBuf(alice.script_pubkey.as_bytes().to_vec()),
+    };
+
+    let utxo_amount =
+        OmniAmount::from_sat((first_unspent["amount"].as_f64().unwrap() * 100_000_000.0) as u64);
+
+    let change_amount: OmniAmount = utxo_amount - OMNI_SPEND_AMOUNT - OmniAmount::from_sat(1000); // 1000 satoshis for fee
+
+    // Create the change output
+    let change_txout = OmniTxOut {
+        value: change_amount,
+        script_pubkey: OmniScriptBuf(bob.script_pubkey.as_bytes().to_vec()),
+    };
+
+    let mut omni_tx: BitcoinTransaction = TransactionBuilder::new::<BITCOIN>()
+        .version(OmniVersion::One)
+        .lock_time(OmniLockTime::from_height(1).unwrap())
+        .inputs(vec![txin])
+        .outputs(vec![txout, change_txout])
+        .build();
+
+    // Add the script_sig to the transaction
+    omni_tx.input[0].script_sig = OmniScriptBuf(bob.script_pubkey.as_bytes().to_vec());
+
+    // Encode the transaction for signing
+    let sighash_type = OmniSighashType::All;
+    let encoded_data = omni_tx.build_for_signing_legacy(sighash_type);
+
+    // Calculate the sighash
+    let sighash_omni = sha256d::Hash::hash(&encoded_data);
+    let msg_omni = Message::from_digest_slice(sighash_omni.as_byte_array()).unwrap();
+
+    // Sign the sighash and broadcast the transaction using the Omni library
+    let secp = Secp256k1::new();
+    let signature_omni = secp.sign_ecdsa(&msg_omni, &bob.private_key);
+
+    // Verify signature
+    let is_valid = secp
+        .verify_ecdsa(&msg_omni, &signature_omni, &bob.public_key)
+        .is_ok();
+
+    assert!(is_valid, "The signature should be valid");
+
+    // Encode the signature
+    let signature = bitcoin::ecdsa::Signature {
+        signature: signature_omni,
+        sighash_type: EcdsaSighashType::All,
+    };
+
+    // Create the script_sig
+    let script_sig_new = Builder::new()
+        .push_slice(signature.serialize())
+        .push_key(&bob.bitcoin_public_key)
+        .into_script();
+
+    // Assign script_sig to txin
+    let omni_script_sig = OmniScriptBuf(script_sig_new.as_bytes().to_vec());
+    let encoded_omni_tx = omni_tx.build_with_script_sig(0, omni_script_sig, TransactionType::P2PKH);
+
+    // Convert the transaction to a hexadecimal string
+    let hex_omni_tx = hex::encode(encoded_omni_tx);
+
+    let raw_tx_result: serde_json::Value = client
+        .call("sendrawtransaction", &[json!(hex_omni_tx)])
+        .unwrap();
+
+    println!("raw_tx_result: {:?}", raw_tx_result);
+
+    client.generate_to_address(101, &bob.address)?;
+
+    btc_test_context.assert_utxos_for_address(alice.address, 1);
 
     Ok(())
 }
@@ -895,58 +896,4 @@ async fn test_p2wpkh_multiple_utxos() -> Result<()> {
     client.generate_to_address(101, &bob.address)?;
 
     Ok(())
-}
-
-fn assert_utxos_for_address(client: &bitcoind::Client, address: Address, number_of_utxos: usize) {
-    let min_conf = 1;
-    let max_conf = 9999999;
-    let include_unsafe = true;
-    let query_options = json!({});
-
-    let unspent_utxos: Vec<serde_json::Value> = client
-        .call(
-            "listunspent",
-            &[
-                json!(min_conf),
-                json!(max_conf),
-                json!(vec![address.to_string()]),
-                json!(include_unsafe),
-                query_options,
-            ],
-        )
-        .unwrap();
-
-    assert!(
-        unspent_utxos.len() == number_of_utxos,
-        "Expected {} UTXOs for address {}, but found {}",
-        number_of_utxos,
-        address,
-        unspent_utxos.len()
-    );
-}
-
-fn setup_bitcoin_testnet() -> Result<bitcoind::BitcoinD> {
-    if std::env::var("CI_ENVIRONMENT").is_ok() {
-        let curr_dir_path = std::env::current_dir().unwrap();
-
-        let bitcoind_path = if cfg!(target_os = "macos") {
-            curr_dir_path.join("tests/bin").join("bitcoind-mac")
-        } else if cfg!(target_os = "linux") {
-            curr_dir_path.join("tests/bin").join("bitcoind-linux")
-        } else {
-            return Err(
-                std::io::Error::new(std::io::ErrorKind::Other, "Unsupported platform").into(),
-            );
-        };
-
-        let temp_dir = TempDir::new().expect("Failed to create temp dir");
-
-        let mut conf = bitcoind::Conf::default();
-        conf.tmpdir = Some(temp_dir.path().to_path_buf());
-        let bitcoind = bitcoind::BitcoinD::with_conf(bitcoind_path, &conf).unwrap();
-        Ok(bitcoind)
-    } else {
-        let bitcoind = bitcoind::BitcoinD::from_downloaded().unwrap();
-        Ok(bitcoind)
-    }
 }
