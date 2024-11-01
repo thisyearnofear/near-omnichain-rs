@@ -1,6 +1,6 @@
 mod actions;
 mod block_hash;
-mod integers;
+pub mod integers;
 mod public_key;
 mod signature;
 
