@@ -22,6 +22,12 @@ impl ScriptBuf {
     pub const fn from_bytes(bytes: Vec<u8>) -> Self {
         Self(bytes)
     }
+
+    pub fn p2wpkh_script_code(&self) -> Self {
+        let mut script = vec![0x00, 0x14];
+        script.extend_from_slice(&self.0);
+        Self(script)
+    }
 }
 
 pub trait FromHex: Sized {
