@@ -119,7 +119,7 @@ impl<'de> serde::Deserialize<'de> for ScriptBuf {
         } else {
             struct BytesVisitor;
 
-            impl<'de> serde::de::Visitor<'de> for BytesVisitor {
+            impl serde::de::Visitor<'_> for BytesVisitor {
                 type Value = ScriptBuf;
 
                 fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {

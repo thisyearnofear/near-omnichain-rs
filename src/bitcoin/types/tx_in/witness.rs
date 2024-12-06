@@ -156,7 +156,7 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for Iter<'a> {}
+impl ExactSizeIterator for Iter<'_> {}
 
 impl<'a> IntoIterator for &'a Witness {
     type IntoIter = Iter<'a>;
@@ -263,7 +263,7 @@ fn resize_if_needed(vec: &mut Vec<u8>, required_len: usize) {
 
 pub struct SerializeBytesAsHex<'a>(pub(crate) &'a [u8]);
 
-impl<'a> Serialize for SerializeBytesAsHex<'a> {
+impl Serialize for SerializeBytesAsHex<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

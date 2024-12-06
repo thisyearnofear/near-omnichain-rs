@@ -81,7 +81,7 @@ impl<'de> Deserialize<'de> for Version {
     {
         struct StringOrNumberVisitor;
 
-        impl<'de> serde::de::Visitor<'de> for StringOrNumberVisitor {
+        impl serde::de::Visitor<'_> for StringOrNumberVisitor {
             type Value = Version;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
