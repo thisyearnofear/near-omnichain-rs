@@ -1,6 +1,6 @@
 [package]
 name = "omni-transaction"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Proximity Labs Limited"]
 license = "Apache-2.0"
 edition = "2021"
@@ -62,6 +62,13 @@ bitcoin = { version = "0.32.0", default-features = false, features = [
     "rand",
     "secp-lowmemory",
     "secp-recovery",
+] }
+k256 = { version = "0.13.1", features = [
+    "sha256",
+    "ecdsa",
+    "serde",
+    "arithmetic",
+    "expose-field",
 ] }
 
 # async
