@@ -13,6 +13,13 @@ Library to construct transactions for different chains inside Near contracts and
 - Ethereum
 - Bitcoin
 
+## Installation
+
+```toml
+[dependencies]
+omni-transaction = "0.1.3"
+```
+
 ## Examples
 
 For a complete set of examples see the [examples](https://github.com/Omni-rs/examples.git) repository.
