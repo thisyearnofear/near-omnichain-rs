@@ -141,6 +141,10 @@ pub mod signer;
 mod transaction_builder;
 mod transaction_builders;
 
+// WASM bindings
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 pub use transaction_builder::{TransactionBuilder, TxBuilder};
 /// Alias for BitcoinTransactionBuilder
 pub use transaction_builders::BITCOIN;
