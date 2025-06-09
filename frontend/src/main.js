@@ -1,7 +1,8 @@
 // Main application entry point
 import { WalletManager } from './modules/walletManager.js';
 import { TransactionManager } from './modules/transactionManager.js';
-import { UIManager } from './modules/uiManager.js';
+import { WasmTransactionManager } from './modules/wasmTransactionManager.js';
+import { ModernUIManager } from './modules/modernUIManager.js';
 import { Logger } from './modules/logger.js';
 import { CONFIG } from './config/constants.js';
 
@@ -10,8 +11,12 @@ class OmniTransactionApp {
         this.logger = new Logger();
         this.walletManager = new WalletManager(this.logger);
         this.transactionManager = new TransactionManager(this.logger);
-        this.uiManager = new UIManager(this.logger);
-        
+        this.wasmTransactionManager = new WasmTransactionManager(this.logger);
+        this.uiManager = new ModernUIManager(this.logger);
+
+        // Use WASM transaction manager by default, fallback to regular if WASM fails
+        this.useWasm = true;
+
         this.init();
     }
 
@@ -86,17 +91,19 @@ class OmniTransactionApp {
             this.validateForm();
         });
 
-        // Transaction events
-        this.transactionManager.on('statusUpdate', (status) => {
-            this.uiManager.updateTransactionStatus(status);
-        });
+        // Transaction events (for both regular and WASM transaction managers)
+        [this.transactionManager, this.wasmTransactionManager].forEach(manager => {
+            manager.on('statusUpdate', (status) => {
+                this.uiManager.updateTransactionStatus(status);
+            });
 
-        this.transactionManager.on('nearTxHash', (hash) => {
-            this.uiManager.updateNearTxHash(hash);
-        });
+            manager.on('nearTxHash', (hash) => {
+                this.uiManager.updateNearTxHash(hash);
+            });
 
-        this.transactionManager.on('baseTxHash', (hash) => {
-            this.uiManager.updateBaseTxHash(hash);
+            manager.on('baseTxHash', (hash) => {
+                this.uiManager.updateBaseTxHash(hash);
+            });
         });
     }
 
@@ -125,7 +132,7 @@ class OmniTransactionApp {
     async handleTransactionSubmit() {
         try {
             const formData = this.getFormData();
-            
+
             if (!this.validateFormData(formData)) {
                 return;
             }
@@ -133,12 +140,34 @@ class OmniTransactionApp {
             this.uiManager.setButtonLoading('submit-transaction', true);
             this.uiManager.updateTransactionStatus('Initiating cross-chain transfer...');
 
-            // Execute the cross-chain transaction
-            await this.transactionManager.executeCrossChainTransfer(
-                formData,
-                this.walletManager.nearWallet,
-                this.walletManager.baseWallet
-            );
+            // Try WASM transaction manager first, fallback to regular if it fails
+            let transactionManager = this.useWasm ? this.wasmTransactionManager : this.transactionManager;
+
+            try {
+                if (this.useWasm) {
+                    this.logger.info('Using WASM transaction manager for enhanced functionality');
+                }
+
+                await transactionManager.executeCrossChainTransfer(
+                    formData,
+                    this.walletManager.nearWallet,
+                    this.walletManager.baseWallet
+                );
+            } catch (wasmError) {
+                if (this.useWasm) {
+                    this.logger.warn(`WASM transaction failed, falling back to regular manager: ${wasmError.message}`);
+                    this.useWasm = false;
+
+                    // Retry with regular transaction manager
+                    await this.transactionManager.executeCrossChainTransfer(
+                        formData,
+                        this.walletManager.nearWallet,
+                        this.walletManager.baseWallet
+                    );
+                } else {
+                    throw wasmError;
+                }
+            }
 
         } catch (error) {
             this.logger.log(`Transaction failed: ${error.message}`, 'error');
