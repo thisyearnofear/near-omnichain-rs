@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omni Transaction Demo - Cross-Chain USDC Settlement</title>
+    <link rel="stylesheet" href="./src/styles/main.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@near-wallet-selector/modal-ui@8.9.0/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <h1 class="logo">
+                        <span class="logo-icon">⚡</span>
+                        Omni Transaction Demo
+                    </h1>
+                    <div class="header-subtitle">
+                        Cross-Chain USDC Settlement using NEAR Signatures
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="container">
+                <!-- Connection Status -->
+                <section class="connection-section">
+                    <div class="card">
+                        <h2>Wallet Connection</h2>
+                        <div class="connection-status">
+                            <div class="wallet-item">
+                                <span class="wallet-label">NEAR Wallet:</span>
+                                <span id="near-status" class="status disconnected">Disconnected</span>
+                                <button id="connect-near" class="btn btn-primary">Connect NEAR</button>
+                            </div>
+                            <div class="wallet-item">
+                                <span class="wallet-label">Base Network:</span>
+                                <span id="base-status" class="status disconnected">Disconnected</span>
+                                <button id="connect-base" class="btn btn-secondary">Connect Base</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Transaction Form -->
+                <section class="transaction-section">
+                    <div class="card">
+                        <h2>Cross-Chain USDC Settlement</h2>
+                        <div class="transaction-flow">
+                            <div class="flow-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h3>Source Chain</h3>
+                                    <div class="chain-info">
+                                        <span class="chain-name">NEAR Protocol</span>
+                                        <span class="chain-badge near">NEAR</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flow-arrow">→</div>
+                            
+                            <div class="flow-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h3>Destination Chain</h3>
+                                    <div class="chain-info">
+                                        <span class="chain-name">Base Network</span>
+                                        <span class="chain-badge base">BASE</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form id="transaction-form" class="transaction-form">
+                            <div class="form-group">
+                                <label for="amount">USDC Amount</label>
+                                <input type="number" id="amount" placeholder="0.00" step="0.01" min="0" required>
+                                <span class="input-suffix">USDC</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="recipient">Recipient Address (Base)</label>
+                                <input type="text" id="recipient" placeholder="0x..." required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="gas-fee">Estimated Gas Fee</label>
+                                <div class="gas-estimate">
+                                    <span id="gas-amount">~0.002 ETH</span>
+                                    <button type="button" id="refresh-gas" class="btn-icon">🔄</button>
+                                </div>
+                            </div>
+
+                            <button type="submit" id="submit-transaction" class="btn btn-primary btn-large" disabled>
+                                Initiate Cross-Chain Transfer
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Transaction Status -->
+                <section class="status-section">
+                    <div class="card">
+                        <h2>Transaction Status</h2>
+                        <div id="transaction-status" class="transaction-status">
+                            <div class="status-item">
+                                <span class="status-label">Status:</span>
+                                <span id="tx-status" class="status-value">Ready</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">NEAR Tx Hash:</span>
+                                <span id="near-tx-hash" class="status-value">-</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Base Tx Hash:</span>
+                                <span id="base-tx-hash" class="status-value">-</span>
+                            </div>
+                        </div>
+                        
+                        <div id="transaction-log" class="transaction-log">
+                            <h3>Transaction Log</h3>
+                            <div id="log-content" class="log-content">
+                                <p class="log-entry">Ready to initiate cross-chain transfer...</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- How It Works -->
+                <section class="info-section">
+                    <div class="card">
+                        <h2>How It Works</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-icon">🔐</div>
+                                <h3>NEAR Signature</h3>
+                                <p>Sign a transaction on NEAR to authorize the cross-chain transfer</p>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">🌉</div>
+                                <h3>Bridge Protocol</h3>
+                                <p>The signature is verified and used to authorize the Base transaction</p>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">💰</div>
+                                <h3>USDC Settlement</h3>
+                                <p>USDC is transferred to the recipient on Base network</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="container">
+                <p>&copy; 2024 Omni Transaction Demo. Built with ❤️ for cross-chain interoperability.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+</body>
+</html>

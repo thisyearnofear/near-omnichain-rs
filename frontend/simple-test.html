@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple NEAR Wallet Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            padding: 12px 24px;
+            margin: 8px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        button:hover:not(:disabled) { 
+            background: #5a67d8; 
+            transform: translateY(-1px);
+        }
+        button:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+            transform: none;
+        }
+        .account-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        .log {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 2px 0;
+        }
+        .log-entry.success { color: #68d391; }
+        .log-entry.error { color: #fc8181; }
+        .log-entry.warning { color: #f6e05e; }
+        h1 { color: #2d3748; margin-bottom: 10px; }
+        h2 { color: #4a5568; margin-bottom: 15px; }
+        .subtitle { color: #718096; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Simple NEAR Wallet Test</h1>
+        <p class="subtitle">Testing direct NEAR wallet connection on mainnet</p>
+        
+        <div id="status" class="status info">
+            Ready to test NEAR wallet connection...
+        </div>
+        
+        <div>
+            <button id="connectBtn" onclick="testConnection()">Connect NEAR Wallet</button>
+            <button id="disconnectBtn" onclick="testDisconnection()" disabled>Disconnect</button>
+            <button id="testTxBtn" onclick="testTransaction()" disabled>Test Transaction</button>
+        </div>
+        
+        <div id="accountInfo"></div>
+        
+        <div id="log" class="log">
+            <div class="log-entry">Application initialized...</div>
+        </div>
+    </div>
+    
+    <script type="module">
+        // Simple logger for testing
+        class TestLogger {
+            constructor() {
+                this.logContainer = document.getElementById('log');
+            }
+            
+            log(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logMessage = `[${timestamp}] ${message}`;
+                console.log(logMessage);
+                this.addToLog(logMessage, type);
+                this.updateStatus(message, type);
+            }
+            
+            addToLog(message, type) {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.textContent = message;
+                this.logContainer.insertBefore(entry, this.logContainer.firstChild);
+                
+                // Limit log entries
+                const entries = this.logContainer.querySelectorAll('.log-entry');
+                if (entries.length > 20) {
+                    entries[entries.length - 1].remove();
+                }
+            }
+            
+            updateStatus(message, type) {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = message;
+                statusEl.className = `status ${type}`;
+            }
+            
+            success(message) { this.log(message, 'success'); }
+            error(message) { this.log(message, 'error'); }
+            info(message) { this.log(message, 'info'); }
+            warning(message) { this.log(message, 'warning'); }
+        }
+        
+        // Simple NEAR wallet implementation
+        class SimpleNearWallet {
+            constructor(logger) {
+                this.logger = logger;
+                this.accountId = null;
+                this.isConnected = false;
+            }
+            
+            async init() {
+                // Check URL parameters for callback
+                const urlParams = new URLSearchParams(window.location.search);
+                const accountId = urlParams.get('account_id');
+                const publicKey = urlParams.get('public_key');
+                
+                if (accountId && publicKey) {
+                    this.accountId = accountId;
+                    this.isConnected = true;
+                    this.logger.success(`NEAR wallet connected: ${accountId}`);
+                    
+                    // Clean URL
+                    const url = new URL(window.location);
+                    url.searchParams.delete('account_id');
+                    url.searchParams.delete('public_key');
+                    url.searchParams.delete('all_keys');
+                    window.history.replaceState({}, document.title, url.toString());
+                    
+                    return true;
+                }
+                
+                // Check localStorage
+                const savedAccountId = localStorage.getItem('near_wallet_account_id');
+                if (savedAccountId) {
+                    this.accountId = savedAccountId;
+                    this.isConnected = true;
+                    this.logger.success(`NEAR wallet restored: ${savedAccountId}`);
+                    return true;
+                }
+                
+                this.logger.info('No existing NEAR wallet connection');
+                return false;
+            }
+            
+            async connect() {
+                this.logger.info('Connecting to NEAR wallet...');
+                
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.delete('account_id');
+                currentUrl.searchParams.delete('public_key');
+                currentUrl.searchParams.delete('all_keys');
+                
+                const walletUrl = new URL('/login/', 'https://app.mynearwallet.com/');
+                walletUrl.searchParams.set('contract_id', 'bridge.near');
+                walletUrl.searchParams.set('success_url', currentUrl.toString());
+                walletUrl.searchParams.set('failure_url', currentUrl.toString());
+                
+                this.logger.info('Redirecting to NEAR wallet...');
+                window.location.href = walletUrl.toString();
+            }
+            
+            async disconnect() {
+                localStorage.removeItem('near_wallet_account_id');
+                this.accountId = null;
+                this.isConnected = false;
+                this.logger.info('NEAR wallet disconnected');
+            }
+            
+            getAccountId() {
+                return this.accountId;
+            }
+            
+            isWalletConnected() {
+                return this.isConnected && this.accountId !== null;
+            }
+            
+            async signTransaction() {
+                this.logger.info('Simulating transaction signing...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                this.logger.success('Transaction signed (demo mode)');
+                return { hash: 'demo_tx_' + Date.now() };
+            }
+        }
+        
+        // Initialize
+        const logger = new TestLogger();
+        const nearWallet = new SimpleNearWallet(logger);
+        
+        nearWallet.init().then((connected) => {
+            if (connected) {
+                updateUI(true, nearWallet.getAccountId());
+            }
+        });
+        
+        // Global functions for buttons
+        window.testConnection = async function() {
+            try {
+                document.getElementById('connectBtn').disabled = true;
+                await nearWallet.connect();
+            } catch (error) {
+                logger.error(`Connection failed: ${error.message}`);
+                document.getElementById('connectBtn').disabled = false;
+            }
+        };
+        
+        window.testDisconnection = async function() {
+            try {
+                await nearWallet.disconnect();
+                updateUI(false);
+            } catch (error) {
+                logger.error(`Disconnection failed: ${error.message}`);
+            }
+        };
+        
+        window.testTransaction = async function() {
+            try {
+                document.getElementById('testTxBtn').disabled = true;
+                const result = await nearWallet.signTransaction();
+                logger.success(`Transaction result: ${result.hash}`);
+            } catch (error) {
+                logger.error(`Transaction failed: ${error.message}`);
+            } finally {
+                document.getElementById('testTxBtn').disabled = false;
+            }
+        };
+        
+        function updateUI(connected, accountId = null) {
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('testTxBtn').disabled = !connected;
+            
+            const accountInfo = document.getElementById('accountInfo');
+            if (connected && accountId) {
+                // Save to localStorage
+                localStorage.setItem('near_wallet_account_id', accountId);
+                
+                accountInfo.innerHTML = `
+                    <div class="account-info">
+                        <h2>✅ Connected to NEAR Wallet</h2>
+                        <p><strong>Account ID:</strong> ${accountId}</p>
+                        <p><strong>Network:</strong> NEAR Mainnet</p>
+                        <p><strong>Status:</strong> Ready for transactions</p>
+                    </div>
+                `;
+            } else {
+                accountInfo.innerHTML = '';
+            }
+        }
+        
+        logger.info('Simple NEAR wallet test initialized');
+    </script>
+</body>
+</html>

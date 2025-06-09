@@ -1,0 +1,28 @@
+{
+  "name": "omni-transaction-demo",
+  "version": "1.0.0",
+  "description": "Cross-chain transaction demo using NEAR signatures",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "python3 -m http.server 8080"
+  },
+  "dependencies": {
+    "ethers": "^6.8.0",
+    "near-api-js": "^4.0.3",
+    "@near-wallet-selector/core": "^8.9.0",
+    "@near-wallet-selector/my-near-wallet": "^8.9.0",
+    "@near-wallet-selector/here-wallet": "^8.9.0",
+    "@near-wallet-selector/modal-ui": "^8.9.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "vite-plugin-wasm": "^3.3.0",
+    "buffer": "^6.0.3",
+    "process": "^0.11.10",
+    "util": "^0.12.5"
+  },
+  "type": "module"
+}
