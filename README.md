@@ -1,119 +1,195 @@
-# Omni Transaction Rust library
+# NEAR Omnichain Bridge
 
-Library to construct transactions for different chains inside Near contracts and Rust clients.
+A modern, clean bridge application for transferring USDC from NEAR to Base via Ethereum using audited infrastructure.
 
-[![Telegram chat][telegram-badge]][telegram-url]
+## 🌉 Overview
 
-[telegram-badge]: https://img.shields.io/endpoint?color=neon&style=for-the-badge&url=https://tg.sumanjay.workers.dev/chain_abstraction
-[telegram-url]: https://t.me/chain_abstraction
+This application provides a **two-stage bridging approach** for moving USDC from NEAR Protocol to Base network:
 
-## Supported chains
+1. **Stage 1**: NEAR → Ethereum (via Rainbow Bridge)
+2. **Stage 2**: Ethereum → Base (via Chainlink CCIP)
 
-- NEAR
-- Ethereum
-- Bitcoin
+### ✨ Key Features
 
-## Installation
+- 🔗 **Multi-Wallet Support** - MetaMask, Coinbase, Brave, WalletConnect, Rainbow, Trust Wallet
+- 📱 **Mobile-First** - WalletConnect integration for mobile wallet connections
+- 🛡️ **Audited Infrastructure** - Uses only battle-tested bridge contracts
+- 🎨 **Clean UI** - Modern, responsive design with real-time status updates
+- ⚡ **API-First** - Pure JavaScript architecture, no dependencies on WASM
+- 🔐 **Secure** - Non-custodial, user maintains control throughout
 
-```toml
-[dependencies]
-omni-transaction = "0.2.1"
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 18+ 
+- A NEAR wallet (MyNearWallet recommended)
+- An EVM wallet (MetaMask, Coinbase, etc.)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/thisyearnofear/near-omnichain-rs
+cd near-omnichain-rs
+
+# Install frontend dependencies
+cd frontend
+npm install
+
+# Install backend dependencies  
+cd ../backend
+npm install
 ```
 
-## Examples
+### Running the Application
 
-For a complete set of examples see the [examples](https://github.com/Omni-rs/examples.git) repository.
+```bash
+# Start the backend API server
+cd backend
+npm start
 
-Building a NEAR transaction:
-```rust
-let signer_id = "alice.near";
-let signer_public_key = "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp";
-let nonce = U64(0);
-let receiver_id = "bob.near";
-let block_hash_str = "4reLvkAWfqk5fsqio1KLudk46cqRz9erQdaHkWZKMJDZ";
-let transfer_action = Action::Transfer(TransferAction { deposit: U128(1) });
-let actions = vec![transfer_action];
-
-let near_tx = TransactionBuilder::new::<NEAR>()
-    .signer_id(signer_id.to_string())
-    .signer_public_key(signer_public_key.to_public_key().unwrap())
-    .nonce(nonce)
-    .receiver_id(receiver_id.to_string())
-    .block_hash(block_hash_str.to_block_hash().unwrap())
-    .actions(actions)
-    .build();
-
-// Now you have access to build_for_signing that returns the encoded payload
-let near_tx_encoded = near_tx.build_for_signing();
+# In another terminal, start the frontend
+cd frontend  
+npm run dev
 ```
 
-Building an Ethereum transaction:
+Open http://localhost:3000 to use the bridge.
 
-```rust
-let to_address_str = "d8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
-let to_address = parse_eth_address(to_address_str);
-let max_gas_fee: u128 = 20_000_000_000;
-let max_priority_fee_per_gas: u128 = 1_000_000_000;
-let gas_limit: u128 = 21_000;
-let chain_id: u64 = 1;
-let nonce: u64 = 0;
-let data: Vec<u8> = vec![];
-let value: u128 = 10000000000000000; // 0.01 ETH
+## 🏗️ Architecture
 
-let evm_tx = TransactionBuilder::new::<EVM>()
-    .nonce(nonce)
-    .to(to_address)
-    .value(value)
-    .input(data.clone())
-    .max_priority_fee_per_gas(max_priority_fee_per_gas)
-    .max_fee_per_gas(max_gas_fee)
-    .gas_limit(gas_limit)
-    .chain_id(chain_id)
-    .build();
+### Frontend (Pure JavaScript)
+- **Modern ES6 Modules** - Clean, modular architecture
+- **Multi-Wallet Manager** - Supports all major EVM wallets
+- **NEAR Wallet Integration** - Direct integration with MyNearWallet
+- **Responsive UI** - Works on desktop and mobile
 
-// Now you have access to build_for_signing that returns the encoded payload
-let rlp_encoded = evm_tx.build_for_signing();
+### Backend (Node.js API)
+- **Bridge Logic** - Handles cross-chain transaction coordination
+- **Status Tracking** - Real-time transaction monitoring
+- **Error Handling** - Comprehensive error management
+
+### Supported Wallets
+
+**EVM Wallets:**
+- 🦊 MetaMask (Browser extension)
+- 🔵 Coinbase Wallet (Browser extension)
+- 🦁 Brave Wallet (Built-in browser)
+- 🔗 WalletConnect (Mobile wallets via QR)
+- 🌈 Rainbow (Mobile via WalletConnect)
+- 🛡️ Trust Wallet (Mobile via WalletConnect)
+
+**NEAR Wallets:**
+- MyNearWallet (Recommended)
+- NEAR Wallet
+- Meteor Wallet
+
+## 🔧 Development
+
+### Project Structure
+
+```
+├── frontend/           # React-free frontend application
+│   ├── src/
+│   │   ├── modules/    # Core application modules
+│   │   ├── config/     # Configuration and constants
+│   │   └── styles/     # CSS styling
+│   └── index.html      # Main application entry
+├── backend/            # Node.js API server
+│   ├── services/       # Bridge and API services
+│   └── server.js       # Express server
+└── docs/              # Documentation
 ```
 
-Building a Bitcoin transaction:
+### Key Modules
 
-```rust
-let txid_str = "2ece6cd71fee90ff613cee8f30a52c3ecc58685acf9b817b9c467b7ff199871c";
-let hash = Hash::from_hex(txid_str).unwrap();
-let txid = Txid(hash);
-let vout = 0;
+- **WalletManager** - Handles all wallet connections
+- **MultiWalletManager** - EVM wallet detection and connection
+- **SimpleNearWallet** - NEAR wallet integration
+- **ModernUIManager** - UI state management
+- **Logger** - Centralized logging system
 
-let txin: TxIn = TxIn {
-    previous_output: OutPoint::new(txid, vout as u32),
-    script_sig: ScriptBuf::default(), // For a p2pkh script_sig is initially empty.
-    sequence: Sequence::MAX,
-    witness: Witness::default(),
-};
+## 🌐 Networks
 
-let sender_script_pubkey_hex = "76a914cb8a3018cf279311b148cb8d13728bd8cbe95bda88ac";
-let sender_script_pubkey = ScriptBuf(sender_script_pubkey_hex.as_bytes().to_vec());
+### Mainnet Configuration
+- **NEAR**: Mainnet (`mainnet`)
+- **Base**: Mainnet (Chain ID: 8453)
+- **Ethereum**: Mainnet (for bridging)
 
-let receiver_script_pubkey_hex = "76a914406cf8a18b97a230d15ed82f0d251560a05bda0688ac";
-let receiver_script_pubkey = ScriptBuf(receiver_script_pubkey_hex.as_bytes().to_vec());
+### Bridge Infrastructure
+- **Rainbow Bridge**: NEAR ↔ Ethereum
+- **Chainlink CCIP**: Ethereum ↔ Base
+- **USDC Contracts**: Native USDC on all networks
 
-// The spend output is locked to a key controlled by the receiver.
-let spend_txout: TxOut = TxOut {
-    value: Amount::from_sat(500_000_000),
-    script_pubkey: receiver_script_pubkey,
-};
+## 🔐 Security
 
-let change_txout = TxOut {
-    value: Amount::from_sat(100_000_000),
-    script_pubkey: sender_script_pubkey,
-};
+- **Non-custodial**: Users maintain control of their funds
+- **Audited contracts**: Only uses battle-tested bridge infrastructure
+- **No private keys**: Application never handles private keys
+- **Client-side signing**: All transactions signed in user's wallet
 
-let bitcoin_tx = TransactionBuilder::new::<BITCOIN>()
-    .version(Version::One)
-    .inputs(vec![txin])
-    .outputs(vec![spend_txout, change_txout])
-    .lock_time(LockTime::from_height(0).unwrap())
-    .build();
+## 📱 Mobile Support
 
-// Prepare the transaction for signing
-let encoded_tx = bitcoin_tx.build_for_signing_legacy(EcdsaSighashType::All);
+The application fully supports mobile wallets through WalletConnect:
+
+1. **Desktop**: Click WalletConnect option
+2. **Mobile**: Scan QR code with mobile wallet
+3. **Connection**: Approve connection in mobile wallet
+4. **Transactions**: Sign transactions on mobile device
+
+## 🧪 Testing
+
+### Test Pages
+- `near-connection-test.html` - NEAR wallet connection testing
+- `multi-wallet-test.html` - EVM wallet testing
+
+### Running Tests
+```bash
+# Start development server
+cd frontend && npm run dev
+
+# Open test pages
+open http://localhost:3000/near-connection-test.html
+open http://localhost:3000/multi-wallet-test.html
 ```
+
+## 🚀 Deployment
+
+### Frontend
+```bash
+cd frontend
+npm run build
+# Deploy dist/ folder to your hosting provider
+```
+
+### Backend
+```bash
+cd backend
+npm start
+# Deploy to your Node.js hosting provider
+```
+
+## 📚 Documentation
+
+- [Getting Started](docs/GETTING_STARTED.md)
+- [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md)
+- [Project Overview](docs/PROJECT_OVERVIEW.md)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+Apache-2.0 License - see [LICENSE](LICENSE-APACHE) for details.
+
+## 🔗 Links
+
+- [NEAR Protocol](https://near.org)
+- [Base Network](https://base.org)
+- [Rainbow Bridge](https://rainbowbridge.app)
+- [Chainlink CCIP](https://chain.link/cross-chain)

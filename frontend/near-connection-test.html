@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEAR Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        .code {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 NEAR Wallet Connection Test</h1>
+    
+    <div class="test-section">
+        <h2>Current Status</h2>
+        <div id="current-status" class="status info">Checking...</div>
+        <button onclick="checkCurrentStatus()">Refresh Status</button>
+    </div>
+
+    <div class="grid">
+        <div class="test-section">
+            <h2>URL Parameters</h2>
+            <div id="url-params" class="code">Loading...</div>
+            <button onclick="checkUrlParams()">Check URL Params</button>
+        </div>
+
+        <div class="test-section">
+            <h2>LocalStorage</h2>
+            <div id="localStorage-data" class="code">Loading...</div>
+            <button onclick="checkLocalStorage()">Check LocalStorage</button>
+            <button onclick="clearLocalStorage()" class="danger">Clear LocalStorage</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual Tests</h2>
+        <div>
+            <button onclick="setTestConnection()" class="success">Set Test Connection</button>
+            <button onclick="connectToNearWallet()">Connect to NEAR Wallet</button>
+            <button onclick="simulateCallback()">Simulate Callback</button>
+        </div>
+        <div id="test-results" class="code">No tests run yet...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Generated Wallet URL</h2>
+        <div id="wallet-url" class="code">Click "Generate URL" to see the wallet connection URL</div>
+        <button onclick="generateWalletUrl()">Generate URL</button>
+        <button onclick="openWalletUrl()">Open Wallet URL</button>
+    </div>
+
+    <script type="module">
+        import { CONFIG } from './src/config/constants.js';
+
+        let generatedWalletUrl = '';
+
+        // Check current status
+        window.checkCurrentStatus = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlParams = urlParams.has('account_id') && urlParams.has('public_key');
+            
+            const authKey = localStorage.getItem('near_app_wallet_auth_key');
+            const accountId = localStorage.getItem('near_wallet_account_id');
+            const hasLocalStorage = authKey && accountId;
+            
+            const statusDiv = document.getElementById('current-status');
+            
+            if (hasUrlParams) {
+                statusDiv.textContent = `✅ URL Callback Detected: ${urlParams.get('account_id')}`;
+                statusDiv.className = 'status success';
+            } else if (hasLocalStorage) {
+                statusDiv.textContent = `✅ LocalStorage Connection: ${accountId}`;
+                statusDiv.className = 'status success';
+            } else {
+                statusDiv.textContent = '❌ No NEAR wallet connection detected';
+                statusDiv.className = 'status error';
+            }
+        };
+
+        // Check URL parameters
+        window.checkUrlParams = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountId = urlParams.get('account_id');
+            const publicKey = urlParams.get('public_key');
+            const allKeys = urlParams.get('all_keys');
+            
+            const data = {
+                'Current URL': window.location.href,
+                'Search Params': window.location.search || 'None',
+                'account_id': accountId || 'None',
+                'public_key': publicKey ? publicKey.substring(0, 30) + '...' : 'None',
+                'all_keys': allKeys || 'None'
+            };
+            
+            document.getElementById('url-params').textContent = JSON.stringify(data, null, 2);
+        };
+
+        // Check localStorage
+        window.checkLocalStorage = function() {
+            const authKey = localStorage.getItem('near_app_wallet_auth_key');
+            const accountId = localStorage.getItem('near_wallet_account_id');
+            const requestId = localStorage.getItem('near_wallet_request_id');
+            
+            const data = {
+                'near_app_wallet_auth_key': authKey ? authKey.substring(0, 30) + '...' : 'None',
+                'near_wallet_account_id': accountId || 'None',
+                'near_wallet_request_id': requestId || 'None',
+                'Total localStorage items': localStorage.length
+            };
+            
+            document.getElementById('localStorage-data').textContent = JSON.stringify(data, null, 2);
+        };
+
+        // Clear localStorage
+        window.clearLocalStorage = function() {
+            localStorage.removeItem('near_app_wallet_auth_key');
+            localStorage.removeItem('near_wallet_account_id');
+            localStorage.removeItem('near_wallet_request_id');
+            
+            document.getElementById('test-results').textContent = 'LocalStorage cleared!';
+            checkLocalStorage();
+            checkCurrentStatus();
+        };
+
+        // Set test connection
+        window.setTestConnection = function() {
+            localStorage.setItem('near_app_wallet_auth_key', 'ed25519:test_key_12345');
+            localStorage.setItem('near_wallet_account_id', 'papajams.near');
+            
+            document.getElementById('test-results').textContent = 'Test connection set! Check status above.';
+            checkLocalStorage();
+            checkCurrentStatus();
+        };
+
+        // Generate wallet URL
+        window.generateWalletUrl = function() {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete('account_id');
+            currentUrl.searchParams.delete('public_key');
+            currentUrl.searchParams.delete('all_keys');
+
+            const walletUrl = new URL('/login/', CONFIG.NETWORKS.NEAR.walletUrl);
+            walletUrl.searchParams.set('contract_id', CONFIG.CONTRACTS.BRIDGE_NEAR);
+            walletUrl.searchParams.set('success_url', currentUrl.toString());
+            walletUrl.searchParams.set('failure_url', currentUrl.toString());
+            walletUrl.searchParams.set('public_key_ed25519', '');
+
+            generatedWalletUrl = walletUrl.toString();
+            
+            const data = {
+                'Wallet Base URL': CONFIG.NETWORKS.NEAR.walletUrl,
+                'Contract ID': CONFIG.CONTRACTS.BRIDGE_NEAR,
+                'Success URL': currentUrl.toString(),
+                'Full Wallet URL': generatedWalletUrl
+            };
+            
+            document.getElementById('wallet-url').textContent = JSON.stringify(data, null, 2);
+        };
+
+        // Open wallet URL
+        window.openWalletUrl = function() {
+            if (generatedWalletUrl) {
+                window.location.href = generatedWalletUrl;
+            } else {
+                alert('Generate URL first!');
+            }
+        };
+
+        // Connect to NEAR wallet (same as main app)
+        window.connectToNearWallet = function() {
+            generateWalletUrl();
+            setTimeout(() => {
+                if (confirm('Open NEAR wallet for authentication?')) {
+                    openWalletUrl();
+                }
+            }, 100);
+        };
+
+        // Simulate callback
+        window.simulateCallback = function() {
+            const testUrl = new URL(window.location.href);
+            testUrl.searchParams.set('account_id', 'papajams.near');
+            testUrl.searchParams.set('public_key', 'ed25519:test_public_key_12345');
+            testUrl.searchParams.set('all_keys', 'ed25519:test_public_key_12345');
+            
+            window.history.replaceState({}, document.title, testUrl.toString());
+            
+            document.getElementById('test-results').textContent = 'Simulated callback URL set! Check URL params above.';
+            checkUrlParams();
+            checkCurrentStatus();
+        };
+
+        // Initialize
+        function init() {
+            checkCurrentStatus();
+            checkUrlParams();
+            checkLocalStorage();
+            generateWalletUrl();
+        }
+
+        init();
+    </script>
+</body>
+</html>

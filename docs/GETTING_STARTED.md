@@ -1,115 +1,142 @@
-# Getting Started with omni-transaction-rs
+# Getting Started with NEAR Omnichain Bridge
 
-This guide will help you set up and start using the `omni-transaction-rs` library to work with NEAR chain signatures for cross-chain transactions.
+This guide will help you set up and start using the NEAR Omnichain Bridge application for transferring USDC from NEAR to Base via Ethereum.
 
 ## Prerequisites
 
-- Rust and Cargo installed (stable channel)
-- `wasm32-unknown-unknown` target added to your Rust toolchain
-- Basic understanding of blockchain transactions
+- Node.js 18+
+- A NEAR wallet (MyNearWallet recommended)
+- An EVM wallet (MetaMask, Coinbase, etc.)
+- Basic understanding of cross-chain bridges
 
 ## Installation
 
 1. Clone the repository:
+
    ```bash
-   git clone https://github.com/near/omni-transaction-rs.git
-   cd omni-transaction-rs
+   git clone https://github.com/thisyearnofear/near-omnichain-rs
+   cd near-omnichain-rs
    ```
 
-2. Build the project:
+2. Install dependencies:
+
    ```bash
-   cargo build
+   # Frontend dependencies
+   cd frontend
+   npm install
+
+   # Backend dependencies
+   cd ../backend
+   npm install
    ```
 
-3. (Optional) Run the tests:
+3. Start the application:
+
    ```bash
-   cargo test
+   # Start backend (in one terminal)
+   cd backend
+   npm start
+
+   # Start frontend (in another terminal)
+   cd frontend
+   npm run dev
    ```
 
 ## Project Structure
 
-- `src/near/` - NEAR blockchain transaction building and signing
-- `src/evm/` - Ethereum Virtual Machine transaction building
-- `src/bitcoin/` - Bitcoin transaction building
-- `src/signer/` - Signature utilities and MPC contract integration
-- `examples/` - Example code for using the library
+- `frontend/` - Modern JavaScript frontend application
+  - `src/modules/` - Core application modules (wallet management, UI, etc.)
+  - `src/config/` - Configuration and network constants
+  - `src/styles/` - CSS styling
+- `backend/` - Node.js API server
+  - `services/` - Bridge logic and API services
+- `docs/` - Documentation
 
-## Using the Library
+## Using the Application
 
-### 1. Add as a Dependency
+### 1. Access the Bridge
 
-Add the library to your project's `Cargo.toml`:
+Open http://localhost:3000 in your browser after starting the development servers.
 
-```toml
-[dependencies]
-omni-transaction = "0.2.1"
-```
+### 2. Connect Wallets
 
-### 2. Building Transactions
+**NEAR Wallet:**
 
-The library provides a unified interface for building transactions across different chains:
+- Click "Connect" under NEAR Protocol
+- Choose MyNearWallet (recommended)
+- Approve the connection in your wallet
 
-```rust
-use omni_transaction::{
-    transaction_builder::TransactionBuilder,
-    transaction_builders::NEAR, // or EVM, BITCOIN
-};
+**EVM Wallet:**
 
-// Create a transaction builder for the desired chain
-let tx_builder = TransactionBuilder::new::<NEAR>();
+- Click "Connect Wallet" under Base Network
+- Choose from detected wallets:
+  - 🦊 MetaMask (Browser extension)
+  - 🔵 Coinbase Wallet (Browser extension)
+  - 🦁 Brave Wallet (Built-in browser)
+  - 🔗 WalletConnect (Mobile wallets via QR)
+  - 🌈 Rainbow (Mobile via WalletConnect)
+  - 🛡️ Trust Wallet (Mobile via WalletConnect)
 
-// Configure the transaction with chain-specific parameters
-// ...
+### 3. Bridge USDC
 
-// Build the transaction
-let transaction = tx_builder.build();
-```
+1. **Enter Amount**: Specify USDC amount to bridge from NEAR to Base
+2. **Review Details**: Check transaction details, fees, and estimated time
+3. **Stage 1**: NEAR → Ethereum (via Rainbow Bridge)
+   - Sign transaction in NEAR wallet
+   - Wait for confirmation on Ethereum
+4. **Stage 2**: Ethereum → Base (via Chainlink CCIP)
+   - Automatic or manual trigger
+   - Wait for final confirmation
+5. **Complete**: Receive USDC on Base network
 
-### 3. Signing Transactions
+## Supported Networks
 
-Once you have built a transaction, you can get the payload for signing:
+- **NEAR Protocol**: Mainnet
+- **Ethereum**: Mainnet (bridging layer)
+- **Base**: Mainnet (destination)
 
-```rust
-// Get the transaction payload for signing
-let payload = transaction.build_for_signing();
+## Bridge Infrastructure
 
-// Sign the payload with a NEAR private key (not included in this library)
-let signature = sign_with_near_private_key(payload);
+- **Rainbow Bridge**: Official NEAR ↔ Ethereum bridge
+- **Chainlink CCIP**: Ethereum ↔ Base cross-chain protocol
+- **USDC Contracts**: Native USDC on all supported networks
 
-// Build the transaction with the signature
-let signed_tx = transaction.build_with_signature(signature);
-```
+## Testing
 
-### 4. Cross-Chain Transactions
+### Test Pages
 
-For cross-chain transactions, you typically:
+- `near-connection-test.html` - Test NEAR wallet connections
+- `multi-wallet-test.html` - Test EVM wallet connections
 
-1. Build a transaction for the target chain
-2. Sign it with a NEAR key
-3. Submit the transaction and signature to a bridge contract or relayer
-4. The bridge/relayer verifies the signature and executes the transaction on the target chain
-
-## Examples
-
-Check out the examples directory for complete examples:
-
-- `examples/near_signature_example.rs` - Basic NEAR transaction signing
-- `examples/cross_chain_example.rs` - Cross-chain transaction example
-
-Run an example with:
+### Running Tests
 
 ```bash
-cargo run --example cross_chain_example
+# Start development server
+cd frontend && npm run dev
+
+# Open test pages
+open http://localhost:3000/near-connection-test.html
+open http://localhost:3000/multi-wallet-test.html
 ```
 
-## Learning Resources
+## Troubleshooting
 
-- Read the `NEAR_SIGNATURES_GUIDE.md` file for a detailed explanation of using NEAR signatures for cross-chain transactions
-- Check the integration tests in the `tests/` directory for real-world usage examples
-- Join the [Chain Abstraction Telegram group](https://t.me/chain_abstraction) for community support
+### Common Issues
 
-## Next Steps
+**NEAR Wallet Not Connecting:**
 
-- Explore the [examples repository](https://github.com/Omni-rs/examples.git) for more advanced examples
-- Learn about NEAR's [cross-chain bridge infrastructure](https://near.org/bridge)
-- Experiment with building your own cross-chain applications using this library
+- Clear browser cache and localStorage
+- Try a different NEAR wallet (MyNearWallet, NEAR Wallet)
+- Check browser console for errors
+
+**EVM Wallet Not Detected:**
+
+- Install a supported wallet extension
+- Refresh the page after installation
+- Try WalletConnect for mobile wallets
+
+**Transaction Failures:**
+
+- Ensure sufficient balance for gas fees
+- Check network connectivity
+- Verify wallet is on correct network

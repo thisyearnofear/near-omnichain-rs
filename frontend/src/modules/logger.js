@@ -75,6 +75,10 @@ export class Logger {
         this.log(message, 'warning');
     }
 
+    warn(message) {
+        this.log(message, 'warning');
+    }
+
     info(message) {
         this.log(message, 'info');
     }

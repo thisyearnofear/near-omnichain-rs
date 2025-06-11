@@ -10,19 +10,17 @@
     "serve": "python3 -m http.server 8080"
   },
   "dependencies": {
-    "ethers": "^6.8.0",
-    "near-api-js": "^4.0.3",
     "@near-wallet-selector/core": "^8.9.0",
-    "@near-wallet-selector/my-near-wallet": "^8.9.0",
     "@near-wallet-selector/here-wallet": "^8.9.0",
-    "@near-wallet-selector/modal-ui": "^8.9.0"
+    "@near-wallet-selector/modal-ui": "^8.9.0",
+    "@near-wallet-selector/my-near-wallet": "^8.9.0",
+    "@reown/appkit": "^1.7.8",
+    "@reown/appkit-adapter-ethers": "^1.7.8",
+    "ethers": "^6.14.3",
+    "near-api-js": "^4.0.4"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
-    "vite-plugin-wasm": "^3.3.0",
-    "buffer": "^6.0.3",
-    "process": "^0.11.10",
-    "util": "^0.12.5"
+    "vite": "^5.0.0"
   },
   "type": "module"
 }

@@ -1,0 +1,27 @@
+{
+  "name": "omni-transaction-backend",
+  "version": "1.0.0",
+  "description": "Backend API for NEAR Omnibridge - Modern Chain Abstraction",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@reown/appkit": "^1.7.8",
+    "@reown/appkit-adapter-ethers": "^1.7.8",
+    "@tanstack/react-query": "^5.80.6",
+    "connectkit": "^1.9.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.14.3",
+    "express": "^4.18.2",
+    "near-api-js": "^4.0.4",
+    "viem": "^2.31.0",
+    "wagmi": "^2.15.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

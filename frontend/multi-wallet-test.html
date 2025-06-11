@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Wallet Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        .wallet-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .wallet-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .wallet-card:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+        }
+        .wallet-card.detected {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+        .wallet-card.connected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .wallet-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .wallet-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .wallet-status {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .code {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔗 Multi-Wallet EVM Connection Test</h1>
+    
+    <div class="test-section">
+        <h2>Connection Status</h2>
+        <div id="connection-status" class="status info">Not connected</div>
+        <div id="wallet-info" class="code">No wallet connected</div>
+        <button onclick="checkStatus()">Refresh Status</button>
+        <button onclick="disconnect()" class="danger">Disconnect</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Detected Wallets</h2>
+        <div id="wallet-list" class="wallet-list">Loading...</div>
+        <button onclick="refreshWallets()">🔄 Refresh Detection</button>
+        <button onclick="showWalletSelector()">📱 Show Wallet Selector</button>
+        <button onclick="showAllWallets()">👁️ Show All Supported</button>
+    </div>
+
+    <div class="test-section">
+        <h2>All Supported Wallets</h2>
+        <div id="all-wallets" class="wallet-list">Click "Show All Supported" to see the complete list</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual Connection</h2>
+        <p>Click on any detected wallet above to connect, or use these buttons:</p>
+        <button onclick="connectWallet('metamask')">🦊 Connect MetaMask</button>
+        <button onclick="connectWallet('coinbase')">🔵 Connect Coinbase</button>
+        <button onclick="connectWallet('brave')">🦁 Connect Brave</button>
+        <button onclick="connectWallet()">🔗 Connect Any</button>
+    </div>
+
+    <script type="module">
+        import { MultiWalletManager } from './src/modules/multiWalletManager.js';
+        import { WalletSelector } from './src/modules/walletSelector.js';
+        import { Logger } from './src/modules/logger.js';
+
+        const logger = new Logger();
+        const multiWalletManager = new MultiWalletManager(logger);
+        const walletSelector = new WalletSelector(multiWalletManager, logger);
+
+        // Make functions global
+        window.multiWalletManager = multiWalletManager;
+        window.walletSelector = walletSelector;
+
+        // Setup event listeners
+        multiWalletManager.on('baseConnected', (account) => {
+            updateStatus();
+            logger.success(`Wallet connected: ${account}`);
+        });
+
+        multiWalletManager.on('baseDisconnected', () => {
+            updateStatus();
+            logger.info('Wallet disconnected');
+        });
+
+        window.checkStatus = function() {
+            updateStatus();
+        };
+
+        window.refreshWallets = function() {
+            updateWalletList();
+        };
+
+        window.showWalletSelector = function() {
+            walletSelector.show();
+        };
+
+        window.showAllWallets = function() {
+            const allWalletsDiv = document.getElementById('all-wallets');
+            const allWallets = multiWalletManager.supportedWallets;
+            const detectedWallets = multiWalletManager.getDetectedWallets();
+
+            allWalletsDiv.innerHTML = allWallets.map(wallet => {
+                const isDetected = detectedWallets.some(d => d.id === wallet.id);
+                const statusClass = isDetected ? 'detected' : '';
+                const statusText = isDetected ? 'Detected' : 'Not Installed';
+
+                return `
+                    <div class="wallet-card ${statusClass}">
+                        <div class="wallet-icon">${wallet.icon}</div>
+                        <div class="wallet-name">${wallet.name}</div>
+                        <div class="wallet-status">${statusText}</div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.connectWallet = async function(walletId = null) {
+            try {
+                await multiWalletManager.connectWallet(walletId);
+            } catch (error) {
+                logger.error(`Connection failed: ${error.message}`);
+            }
+        };
+
+        window.disconnect = async function() {
+            try {
+                await multiWalletManager.disconnect();
+            } catch (error) {
+                logger.error(`Disconnect failed: ${error.message}`);
+            }
+        };
+
+        function updateStatus() {
+            const statusDiv = document.getElementById('connection-status');
+            const infoDiv = document.getElementById('wallet-info');
+            
+            if (multiWalletManager.isConnected()) {
+                const account = multiWalletManager.getAccount();
+                const walletInfo = multiWalletManager.getWalletInfo();
+                
+                statusDiv.textContent = `✅ Connected to ${walletInfo.name}`;
+                statusDiv.className = 'status success';
+                
+                infoDiv.textContent = JSON.stringify({
+                    wallet: walletInfo.name,
+                    account: account,
+                    chainId: multiWalletManager.chainId
+                }, null, 2);
+            } else {
+                statusDiv.textContent = '❌ Not connected';
+                statusDiv.className = 'status error';
+                infoDiv.textContent = 'No wallet connected';
+            }
+            
+            updateWalletList();
+        }
+
+        function updateWalletList() {
+            const listDiv = document.getElementById('wallet-list');
+            const detectedWallets = multiWalletManager.getDetectedWallets();
+            const connectedWallet = multiWalletManager.getWalletInfo();
+            
+            if (detectedWallets.length === 0) {
+                listDiv.innerHTML = '<p>No wallets detected. Please install a compatible wallet.</p>';
+                return;
+            }
+            
+            listDiv.innerHTML = detectedWallets.map(wallet => {
+                const isConnected = connectedWallet && connectedWallet.id === wallet.id;
+                const statusClass = isConnected ? 'connected' : 'detected';
+                const statusText = isConnected ? 'Connected' : 'Available';
+                
+                return `
+                    <div class="wallet-card ${statusClass}" onclick="connectWallet('${wallet.id}')">
+                        <div class="wallet-icon">${wallet.icon}</div>
+                        <div class="wallet-name">${wallet.name}</div>
+                        <div class="wallet-status">${statusText}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Initialize
+        async function init() {
+            logger.info('🚀 Initializing multi-wallet test...');
+            
+            // Check for existing connections
+            await multiWalletManager.checkExistingConnections();
+            updateStatus();
+        }
+
+        init();
+    </script>
+</body>
+</html>
